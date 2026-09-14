@@ -125,7 +125,7 @@ spec:
         - name: myapp
           image: myrepo/myapp:1.0
           ports:
-            - containerPort: 8080
+            
 ---
 apiVersion: v1
 kind: Service
