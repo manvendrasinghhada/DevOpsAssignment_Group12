@@ -93,3 +93,4 @@ Examples:
 ### 5. Release
 
 The tested version is prepared for users.
+GPG verified commit test
