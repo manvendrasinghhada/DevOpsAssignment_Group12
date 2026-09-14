@@ -94,3 +94,265 @@ Examples:
 
 The tested version is prepared for users.
 GPG verified commit test
+### 6. Deploy
+
+The application is actually placed into the required environment.
+
+### 7. Operate
+
+The application runs and serves users.
+
+### 8. Monitor
+
+Engineers continuously check:
+
+* Errors
+* CPU
+* Memory
+* Response time
+* Availability
+
+---
+
+## DevOps Infinity Loop
+
+Deployment is **not the end of software development**.
+
+After deployment:
+
+```text
+Deploy
+  ↓
+Monitor
+  ↓
+Find Problem
+  ↓
+Fix Code
+  ↓
+Test
+  ↓
+Deploy Again
+  ↓
+Monitor
+```
+
+This creates a continuous cycle.
+
+That is why DevOps is often represented as an **infinity loop**.
+
+---
+
+# 3. ENVIRONMENTS
+
+A company normally does not directly take new code from a developer's laptop and put it into production.
+
+Instead, the application moves through different environments.
+
+## Main Environments
+
+```text
+LOCAL
+  ↓
+DEVELOPMENT
+  ↓
+STAGING
+  ↓
+PRODUCTION
+```
+
+---
+
+## 3.1 Local Environment
+
+This is the developer's own computer.
+
+Example:
+
+```text
+Developer Laptop
+     ↓
+VS Code
+     ↓
+Application
+```
+
+Used by:
+
+**Individual Developer**
+
+Purpose:
+
+* Write code
+* Run application
+* Debug problems
+* Test basic functionality
+
+---
+
+# 3.2 Development Environment
+
+Development environment is a shared environment where developers can test how different parts of the application work together.
+
+Used mainly by:
+
+**Development Team**
+
+Example:
+
+Developer A develops login.
+
+Developer B develops payment.
+
+Both changes can be tested together in the development environment.
+
+---
+
+# 3.3 Staging Environment
+
+Staging is a **pre-production environment**.
+
+It should be as similar to production as possible.
+
+Used by:
+
+* QA
+* Developers
+* Product team
+
+Purpose:
+
+**Final testing before production.**
+
+Example:
+
+```text
+Development
+     ↓
+Staging
+     ↓
+Final Testing
+     ↓
+Production
+```
+
+---
+
+# 3.4 Production Environment
+
+Production is the real environment used by actual users.
+
+Example:
+
+When you open a live website, you are interacting with the **production environment**.
+
+Used by:
+
+**Real Users**
+
+---
+
+## Why not directly deploy to Production?
+
+Because bugs can exist.
+
+Without staging:
+
+```text
+Developer
+    ↓
+Production
+    ↓
+BUG 😨
+    ↓
+Users affected
+```
+
+With staging:
+
+```text
+Developer
+    ↓
+Development
+    ↓
+Staging
+    ↓
+Testing
+    ↓
+Production
+```
+
+The intermediate environments act as filters that catch problems before users see them.
+
+---
+
+# 4. VERSION CONTROL & BRANCHING
+
+## What is Version Control?
+
+Version control keeps track of changes made to source code.
+
+The most commonly used tool is:
+
+**Git**
+
+Git allows developers to:
+
+* Save versions
+* Create branches
+* Merge code
+* See previous changes
+* Work together
+
+---
+
+# What is a Branch?
+
+A branch is basically a separate line of development.
+
+Example:
+
+```text
+main
+  |
+  |------ feature-login
+  |
+  |------ feature-payment
+```
+
+Developers can work on features without directly disturbing `main`.
+
+---
+
+# Common Branching Strategies
+
+## 4.1 Git Flow
+
+Git Flow generally contains:
+
+```text
+main
+develop
+feature/*
+release/*
+hotfix/*
+```
+
+It is a relatively heavy branching process and is useful in some release-based products.
+
+---
+
+# 4.2 Trunk-Based Development
+
+Developers frequently merge small changes into `main`.
+
+```text
+Developer A ─┐
+Developer B ─┼──→ main
+Developer C ─┘
+```
+
+Feature flags can be used to hide unfinished features.
+
+Advantage:
+
+**main**
