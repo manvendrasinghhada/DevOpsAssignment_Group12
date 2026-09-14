@@ -1,296 +1,1422 @@
-# 📝 Deployment Notes — Cloud/DevOps (CI/CD + Containers)
+# AWS DEPLOYMENT SERVICES
 
-> Intermediate-level, end-to-end notes on how deployment works in a real engineering org.
+## 1. Introduction to AWS
 
----
+**AWS (Amazon Web Services)** is a cloud computing platform provided by Amazon.
 
-## Table of Contents
+AWS provides many services that allow organizations to:
 
-1. [Introduction](#1-introduction)
-2. [Where Deployment Fits in the SDLC](#2-where-deployment-fits-in-the-sdlc)
-3. [Environments](#3-environments)
-4. [Version Control & Branching](#4-version-control--branching)
-5. [Continuous Integration (CI)](#5-continuous-integration-ci)
-6. [Containerization with Docker](#6-containerization-with-docker)
-7. [Container Orchestration (Kubernetes)](#7-container-orchestration-kubernetes)
-8. [Continuous Delivery vs Continuous Deployment](#8-continuous-delivery-vs-continuous-deployment)
-9. [CI/CD Tools Overview](#9-cicd-tools-overview)
-10. [Deployment Strategies](#10-deployment-strategies)
-11. [Infrastructure as Code (IaC)](#11-infrastructure-as-code-iac)
-12. [Secrets & Config Management](#12-secrets--config-management)
-13. [Monitoring, Logging & Alerting](#13-monitoring-logging--alerting)
-14. [Rollback & Disaster Recovery](#14-rollback--disaster-recovery)
-15. [Cloud Platforms Overview](#15-cloud-platforms-overview)
-16. [End-to-End Walkthrough (Example)](#16-end-to-end-walkthrough-example)
-17. [Best Practices & Common Pitfalls](#17-best-practices--common-pitfalls)
-18. [Glossary](#18-glossary)
+* Host applications
+* Store data
+* Run virtual machines
+* Deploy containers
+* Manage databases
+* Build CI/CD pipelines
+* Monitor applications
+* Scale applications automatically
+* Implement serverless applications
+
+Instead of purchasing and maintaining physical servers, organizations can use AWS resources over the internet.
 
 ---
 
-## 1. Introduction
+# 2. AWS in Application Deployment
 
-Deployment is the set of processes that move code from a developer's machine to a live, running system that real users interact with — safely, repeatably, and with the ability to undo mistakes.
+AWS can be used at different stages of the deployment process.
 
-In modern engineering, deployment is **automated end-to-end**. Manually copying files to a server (FTP-style deployment) is largely a thing of the past for serious projects. Instead, teams build **pipelines**: a sequence of automated stages that a code change flows through before it reaches users.
+A simplified deployment flow is:
 
-The two ideas at the heart of modern deployment:
-- **CI/CD** — Continuous Integration / Continuous Delivery (or Deployment): automation of build, test, and release.
-- **Containers** — packaging an application with everything it needs to run, so it behaves identically everywhere (your laptop, staging, production).
+```text
+Developer
+    ↓
+GitHub
+    ↓
+CI/CD Pipeline
+    ↓
+Build Application
+    ↓
+Docker Image
+    ↓
+AWS
+    ↓
+Production Application
+```
 
----
+AWS provides different services depending on how the application needs to be deployed.
 
-## 2. Where Deployment Fits in the SDLC
+For example:
 
-The Software Development Life Cycle (SDLC) is usually described as: **Plan → Code → Build → Test → Release → Deploy → Operate → Monitor**.
+```text
+Virtual Machine
+      ↓
+     EC2
 
-Deployment sits at the **Release → Deploy** boundary, but in a DevOps culture it's connected to everything around it:
+Containers
+      ↓
+ ECS / Fargate
 
-- It depends on **CI** (build/test) having passed.
-- It feeds into **Operate/Monitor** (once live, you watch it).
-- It's tightly looped with **Rollback** (if monitoring detects a problem, you deploy backward).
+Kubernetes
+      ↓
+     EKS
 
-This is why the SDLC is often drawn as an infinite loop (the "DevOps infinity loop") rather than a straight line — deployment isn't the end, it's a repeating stage.
+Platform as a Service
+      ↓
+Elastic Beanstalk
 
----
-
-## 3. Environments
-
-Most teams run the same code through multiple environments, each with a different purpose:
-
-| Environment | Purpose | Who uses it |
-|---|---|---|
-| **Local** | Developer's own machine | Individual developer |
-| **Development (Dev)** | Shared integration environment for active work | Dev team |
-| **Staging (Pre-prod)** | Mirrors production as closely as possible; final testing | QA, product |
-| **Production (Prod)** | Live environment serving real users | End users |
-
-**Why not deploy straight to production?**
-Each environment acts as a filter that catches bugs before they reach real users. Staging in particular is meant to be a near-exact replica of production (same OS, same config shape, same scale-down infra) so that "it worked in staging" is a meaningful signal.
-
-Environment-specific behavior is usually controlled via **environment variables** (e.g. `DATABASE_URL`, `API_KEY`), not hardcoded values or separate code branches.
-
----
-
-## 4. Version Control & Branching
-
-Deployment pipelines are triggered by **Git events** (a push, a merge, a tag). So the branching strategy directly shapes how deployment works.
-
-Common strategies:
-
-- **Git Flow** — long-lived `main` and `develop` branches, plus `feature/*`, `release/*`, `hotfix/*`. Heavier process, common in versioned/release-based products.
-- **Trunk-Based Development** — everyone merges small changes into `main` frequently; feature flags hide unfinished work. Pairs very well with CI/CD because `main` is always deployable.
-- **GitHub Flow** — a simplified version: `main` is always deployable, work happens in short-lived feature branches merged via Pull Requests.
-
-**Typical trigger mapping:**
-- Push to `feature/*` → run tests only (CI)
-- Merge to `main` → deploy to staging automatically
-- Tag `v1.2.0` or manual approval → deploy to production
+Serverless
+      ↓
+    Lambda
+```
 
 ---
 
-## 5. Continuous Integration (CI)
+# 3. Amazon EC2
 
-CI means: **every code change is automatically built and tested** as soon as it's pushed, rather than integrating everyone's work in one big painful merge at the end.
+**EC2 (Elastic Compute Cloud)** provides virtual machines in the AWS cloud.
 
-A typical CI stage does:
-1. Checkout code
-2. Install dependencies
-3. Run linters/static analysis
-4. Run unit tests (and sometimes integration tests)
-5. Build the application (compile, bundle, etc.)
-6. Report status back to the PR (pass/fail)
+Instead of purchasing a physical server, we can create a virtual server using EC2.
 
-**Why it matters:** it catches bugs within minutes of being introduced, not weeks later. It also means `main` stays in a "known-good" state, which is a prerequisite for automated deployment.
+Example:
 
----
+```text
+Developer
+    ↓
+AWS EC2
+    ↓
+Application
+    ↓
+Users
+```
 
-## 6. Containerization with Docker
+An EC2 instance can run:
 
-**The problem containers solve:** "it works on my machine" — differences in OS, installed libraries, and versions between dev, staging, and prod cause bugs that have nothing to do with the actual code.
-
-**Docker** packages an application with its exact dependencies, runtime, and configuration into a single unit called an **image**. A running instance of an image is a **container**.
-
-Key concepts:
-- **Dockerfile** — a script of instructions to build an image (base OS, install deps, copy code, set start command).
-- **Image** — a built, immutable snapshot (like a class).
-- **Container** — a running instance of an image (like an object).
-- **Registry** — a place to store and version images (Docker Hub, AWS ECR, GCP Artifact Registry, Azure ACR).
-- **Docker Compose** — defines and runs multi-container setups (e.g., app + database + cache) locally with one config file.
-
-**Why containers fit CI/CD so well:** the exact same image that passed tests in CI is the one deployed to staging and then production — nothing is rebuilt or reinstalled in between, eliminating environment drift.
+* Linux
+* Windows
+* Web servers
+* Backend applications
+* Databases
+* Docker
+* Other software
 
 ---
 
-## 7. Container Orchestration (Kubernetes)
+# 4. EC2 Deployment Process
 
-Once you have more than a couple of containers (multiple services, multiple replicas for scale, self-healing needs), you need something to manage them. That's **container orchestration**.
+A simple EC2 deployment can work like this:
 
-**Kubernetes (K8s)** is the dominant orchestrator. Core concepts:
+```text
+Source Code
+    ↓
+GitHub
+    ↓
+CI/CD
+    ↓
+Build Application
+    ↓
+EC2 Server
+    ↓
+Run Application
+    ↓
+Users
+```
 
-| Concept | What it is |
-|---|---|
-| **Pod** | Smallest deployable unit; wraps one (or a few tightly-coupled) containers |
-| **Deployment** | Declares how many replicas of a pod should run and how to update them |
-| **Service** | Stable network endpoint that routes traffic to healthy pods |
-| **Ingress** | Manages external HTTP(S) access/routing into the cluster |
-| **ConfigMap / Secret** | Externalized configuration and sensitive values |
-| **Node** | A physical/virtual machine in the cluster running pods |
+The developer can configure the EC2 server and install the required software.
 
-Kubernetes continuously watches the *desired state* (declared in YAML) vs the *actual state*, and self-heals: if a container crashes, it's restarted automatically; if a node dies, pods are rescheduled elsewhere.
+For example:
 
-**Lighter-weight alternatives** intermediate teams also use: AWS ECS/Fargate, Google Cloud Run, Azure Container Apps — container orchestration without managing a full K8s cluster.
-
----
-
-## 8. Continuous Delivery vs Continuous Deployment
-
-These two terms are often confused:
-
-- **Continuous Delivery (CD):** every change that passes CI is automatically prepared for release (built, tested, packaged) and is **ready to deploy at any time** — but a human clicks "deploy" (usually to production).
-- **Continuous Deployment (also CD):** goes one step further — every change that passes all automated checks is deployed **automatically, with no human gate**, all the way to production.
-
-Most companies practice **Continuous Delivery to production with a manual gate**, and full **Continuous Deployment** for staging/lower environments.
-
----
-
-## 9. CI/CD Tools Overview
-
-| Tool | Notes |
-|---|---|
-| **GitHub Actions** | YAML-based, lives in `.github/workflows/`, tightly integrated with GitHub repos — very common for small/medium projects |
-| **GitLab CI/CD** | YAML-based (`.gitlab-ci.yml`), built into GitLab, strong built-in container registry |
-| **Jenkins** | Self-hosted, highly customizable via plugins, `Jenkinsfile` (Groovy) — older but still widely used in enterprises |
-| **CircleCI** | Cloud-based, YAML config, known for fast parallel builds |
-| **ArgoCD** | GitOps-style CD specifically for Kubernetes — deploys by syncing cluster state to a Git repo |
-
-A pipeline config generally defines: **triggers** (on push/PR/tag) → **jobs/stages** (build, test, deploy) → **steps** within each job → **environment/secrets** used.
+```text
+EC2
+ ├── Operating System
+ ├── Docker
+ ├── Application
+ └── Web Server
+```
 
 ---
 
-## 10. Deployment Strategies
+# 5. Advantages of EC2
 
-How you swap the *old* running version for the *new* one matters a lot for uptime and risk.
+EC2 provides a high level of control over the server.
 
-| Strategy | How it works | Downtime? | Risk |
-|---|---|---|---|
-| **Recreate** | Stop old version entirely, then start new version | Yes | High (all-or-nothing) |
-| **Rolling Update** | Gradually replace old instances with new ones, a few at a time | No | Medium |
-| **Blue-Green** | Run two identical environments ("blue" = live, "green" = new); switch traffic all at once | No | Low (instant rollback = switch back) |
-| **Canary** | Send a small % of traffic to the new version first, gradually increase | No | Low (catch issues early, small blast radius) |
-| **A/B Testing** | Similar to canary, but split by user segment for feature comparison rather than safety | No | Low |
+Advantages include:
 
-**Rule of thumb:** Canary and Blue-Green are preferred for production; Rolling updates are the Kubernetes default; Recreate is mostly used for simple/non-critical services.
-
----
-
-## 11. Infrastructure as Code (IaC)
-
-Instead of manually clicking around a cloud console to create servers, networks, and databases, IaC defines infrastructure in **version-controlled config files**.
-
-- **Terraform** — cloud-agnostic, declarative (`.tf` files), the most widely used IaC tool.
-- **AWS CloudFormation** — AWS-native equivalent.
-- **Ansible** — more focused on configuration management (installing/configuring software on existing servers) than provisioning, though it can do both.
-
-**Why it matters for deployment:** IaC means environments (staging, prod) can be recreated identically and consistently, and infrastructure changes go through the same PR/review process as code — no untracked manual changes ("configuration drift").
+* Full operating-system control
+* Flexible configurations
+* Support for many operating systems
+* Ability to install custom software
+* Suitable for traditional applications
+* Supports Docker
+* Can be integrated with other AWS services
 
 ---
 
-## 12. Secrets & Config Management
+# 6. Disadvantages of EC2
 
-Never commit secrets (API keys, DB passwords, tokens) to Git — even in private repos.
+EC2 requires more management than fully managed services.
 
-Common approaches:
-- **Environment variables** injected at runtime (via CI/CD pipeline secrets, or the orchestrator)
-- **`.env` files** for local dev only — always in `.gitignore`
-- **Secret managers**: AWS Secrets Manager, HashiCorp Vault, GitHub Actions Secrets, Kubernetes Secrets
-- **The 12-Factor App principle:** config that varies between environments should live in the environment, not in the code.
+The team may need to manage:
 
----
+* Operating system
+* Security updates
+* Software installation
+* Server configuration
+* Scaling
+* Monitoring
+* Networking
 
-## 13. Monitoring, Logging & Alerting
-
-Deployment isn't done when the deploy command finishes — you need visibility into whether it's actually healthy.
-
-- **Logging:** centralized log collection (e.g., ELK stack — Elasticsearch/Logstash/Kibana, or cloud-native equivalents like CloudWatch Logs)
-- **Metrics:** CPU, memory, request latency, error rate (Prometheus + Grafana is a very common combo)
-- **Alerting:** automated notifications (Slack, PagerDuty, email) when metrics cross a threshold
-- **Health checks:** endpoints like `/health` or `/ready` that orchestrators poll to know if a container is alive and ready for traffic — this is what enables self-healing and safe rolling updates
+Therefore, EC2 provides flexibility but also increases operational responsibility.
 
 ---
 
-## 14. Rollback & Disaster Recovery
+# 7. Amazon ECS
 
-Things will break. A good deployment pipeline makes reversing a bad release **fast and boring**, not a crisis.
+**ECS (Elastic Container Service)** is an AWS service for running and managing containers.
 
-- **Rollback** = redeploying the last known-good version (often just re-running the previous pipeline artifact/image tag)
-- **Feature flags** allow disabling a broken feature instantly without a full redeploy
-- **Database migrations** are the hardest part to roll back — prefer backward-compatible migrations (additive changes) so old and new code can both run against the same schema during a rollout
+Instead of directly running an application on a virtual machine, the application can be packaged as a Docker container.
 
-**Key metric:** MTTR (Mean Time To Recovery) — how fast you can detect and fix/rollback an incident. Good CI/CD pipelines optimize for low MTTR, not just fast deploys.
+```text
+Application
+    ↓
+Docker Image
+    ↓
+ECS
+    ↓
+Container
+    ↓
+Users
+```
 
----
-
-## 15. Cloud Platforms Overview
-
-| Provider | Common deployment services |
-|---|---|
-| **AWS** | EC2 (VMs), ECS/Fargate (containers), EKS (managed K8s), Elastic Beanstalk (PaaS), Lambda (serverless) |
-| **Azure** | Azure VMs, AKS (managed K8s), App Service (PaaS), Azure Functions (serverless) |
-| **GCP** | Compute Engine (VMs), GKE (managed K8s), Cloud Run (serverless containers), Cloud Functions |
-
-**General trend:** teams increasingly prefer *managed* container/serverless services (Cloud Run, Fargate, App Service) over managing raw VMs or self-hosted Kubernetes, to reduce operational overhead — full self-managed Kubernetes is reserved for teams with real scale/complexity needs.
+ECS is useful for container-based deployment.
 
 ---
 
-## 16. End-to-End Walkthrough (Example)
+# 8. Why Use ECS?
 
-A realistic pipeline for a typical web app:
+ECS makes it easier to deploy and manage multiple containers.
 
-1. **Developer** pushes code to a `feature/*` branch, opens a PR
-2. **CI (GitHub Actions)** runs on the PR: lint → unit tests → build
-3. PR reviewed and merged into `main`
-4. **CI** runs again on `main`: build → test → **build Docker image** → push image to a registry (tagged with commit SHA)
-5. **CD pipeline** automatically deploys that image to the **staging** environment (e.g., a K8s namespace or Cloud Run service)
-6. Automated smoke tests / QA run against staging
-7. On approval (manual gate, or automatic if using full Continuous Deployment), the **same image** is deployed to **production** using a rolling or canary strategy
-8. **Monitoring** dashboards and alerts watch error rates and latency post-deploy
-9. If something's wrong → **rollback** to the previous image tag; if not → the release is complete
+For example:
 
-The key idea to remember: **the exact same artifact (Docker image) moves through every environment** — nothing is rebuilt between staging and production, which is what makes "it worked in staging" a trustworthy signal.
+```text
+ECS Cluster
+     |
+ ┌───┼────┐
+ ↓   ↓    ↓
+App  API  Worker
+```
 
----
-
-## 17. Best Practices & Common Pitfalls
-
-**Do:**
-- Keep `main`/trunk always deployable
-- Automate everything that's repeatable (build, test, deploy)
-- Make small, frequent deployments rather than big infrequent ones (smaller blast radius)
-- Use health checks so orchestrators can detect and replace unhealthy instances
-- Version and tag every build artifact (image tags = commit SHA, not just `latest`)
-- Keep staging as close to production as possible
-
-**Avoid:**
-- Manually SSHing into production servers to "quickly fix something"
-- Using `latest` tag for production deployments (not reproducible/traceable)
-- Storing secrets in code or `.env` files committed to Git
-- Skipping staging under time pressure
-- Deploying on Fridays without a solid rollback plan (a common team joke, but a real risk)
-- Treating monitoring as optional — a deploy without observability is a deploy you're flying blind on
+Each service can run its own containers.
 
 ---
 
-## 18. Glossary
+# 9. ECS and CI/CD
 
-| Term | Meaning |
-|---|---|
-| **CI** | Continuous Integration — automated build & test on every change |
-| **CD** | Continuous Delivery/Deployment — automated release process |
-| **Artifact** | A built output (binary, Docker image, package) ready to deploy |
-| **Pipeline** | The full automated sequence from commit to deployed |
-| **Blast radius** | How much of the system/users are affected if a change goes wrong |
-| **IaC** | Infrastructure as Code |
-| **Orchestration** | Automated management of containers at scale (Kubernetes, ECS) |
-| **Rollback** | Reverting to a previous known-good deployment |
-| **MTTR** | Mean Time To Recovery — how fast an incident is resolved |
-| **Feature flag** | A toggle to enable/disable functionality without redeploying |
+ECS can be integrated into a CI/CD pipeline.
+
+Example:
+
+```text
+Developer
+    ↓
+GitHub
+    ↓
+GitHub Actions
+    ↓
+Build Docker Image
+    ↓
+Push Image
+    ↓
+AWS ECS
+    ↓
+Deploy Container
+```
+
+This allows application deployments to become automated.
+
+---
+
+# 10. AWS Fargate
+
+**AWS Fargate** is a serverless compute engine for containers.
+
+The main idea is:
+
+> Developers run containers without managing the underlying servers.
+
+With traditional EC2:
+
+```text
+Application
+    ↓
+Container
+    ↓
+EC2
+    ↓
+Physical Infrastructure
+```
+
+With Fargate:
+
+```text
+Application
+    ↓
+Container
+    ↓
+Fargate
+    ↓
+AWS Infrastructure
+```
+
+AWS manages the underlying compute infrastructure.
+
+---
+
+# 11. Advantages of Fargate
+
+Fargate can reduce operational work.
+
+The team does not need to manage the underlying servers in the same way as EC2-based container deployments.
+
+Benefits include:
+
+* Server management is reduced
+* Easy container deployment
+* Works with ECS
+* Supports scalable applications
+* Useful for microservices
+* Fits well with CI/CD
+
+---
+
+# 12. ECS vs Fargate
+
+| ECS                             | Fargate                                      |
+| ------------------------------- | -------------------------------------------- |
+| Container orchestration service | Serverless compute for containers            |
+| Manages container workloads     | Runs container workloads                     |
+| Can use EC2 or Fargate capacity | Does not require users to manage EC2 servers |
+| More infrastructure choices     | Less server management                       |
+
+A simple way to remember:
+
+**ECS = Manage containers**
+
+**Fargate = Run containers without managing servers**
+
+---
+
+# 13. Amazon EKS
+
+**EKS (Elastic Kubernetes Service)** is AWS's managed Kubernetes service.
+
+Kubernetes is used to manage containerized applications at scale.
+
+```text
+Docker Containers
+       ↓
+   Kubernetes
+       ↓
+      EKS
+       ↓
+      AWS
+```
+
+EKS is useful when an organization wants to use Kubernetes while having AWS manage the Kubernetes control plane.
+
+---
+
+# 14. EKS Deployment
+
+A simplified EKS deployment looks like:
+
+```text
+Developer
+    ↓
+GitHub
+    ↓
+CI/CD
+    ↓
+Docker Build
+    ↓
+Container Registry
+    ↓
+EKS
+    ↓
+Kubernetes Pods
+    ↓
+Users
+```
+
+---
+
+# 15. EKS and Kubernetes
+
+EKS uses Kubernetes concepts such as:
+
+* Pods
+* Deployments
+* Services
+* Ingress
+* ConfigMaps
+* Secrets
+* Nodes
+
+Example:
+
+```text
+EKS Cluster
+     |
+ ┌───┼────┐
+ ↓   ↓    ↓
+Pod Pod  Pod
+```
+
+Kubernetes can maintain the desired number of application instances.
+
+---
+
+# 16. Why Use EKS?
+
+EKS can be useful for organizations that need:
+
+* Kubernetes
+* Container orchestration
+* Multiple services
+* Application scaling
+* Self-healing
+* Rolling deployments
+* Kubernetes-based workflows
+
+---
+
+# 17. EKS vs ECS
+
+| ECS                                | EKS                                    |
+| ---------------------------------- | -------------------------------------- |
+| AWS-native container orchestration | Managed Kubernetes                     |
+| Simpler AWS-specific approach      | Kubernetes ecosystem                   |
+| Easier for teams focused on AWS    | Useful for Kubernetes expertise        |
+| Less Kubernetes complexity         | More Kubernetes flexibility            |
+| Good for AWS-centric deployments   | Good for Kubernetes-based environments |
+
+---
+
+# 18. AWS Elastic Beanstalk
+
+**Elastic Beanstalk** is a Platform as a Service (PaaS).
+
+It makes application deployment easier by handling much of the underlying infrastructure configuration.
+
+Instead of manually configuring everything:
+
+```text
+Code
+ ↓
+Elastic Beanstalk
+ ↓
+AWS Infrastructure
+ ↓
+Application
+```
+
+The developer can focus more on application code.
+
+---
+
+# 19. Why Use Elastic Beanstalk?
+
+Elastic Beanstalk is useful when developers want relatively simple application deployment without manually managing every infrastructure component.
+
+It can handle aspects such as:
+
+* Application deployment
+* Infrastructure provisioning
+* Scaling
+* Load balancing
+* Application health monitoring
+
+---
+
+# 20. Elastic Beanstalk Deployment
+
+Example:
+
+```text
+Developer
+    ↓
+Application Code
+    ↓
+Elastic Beanstalk
+    ↓
+AWS Resources
+    ↓
+Running Application
+```
+
+It can therefore simplify deployment for traditional web applications.
+
+---
+
+# 21. AWS Lambda
+
+**AWS Lambda** is a serverless computing service.
+
+With Lambda, developers upload code that runs in response to events.
+
+The developer does not manage a traditional server for the function.
+
+Example:
+
+```text
+Event
+  ↓
+Lambda Function
+  ↓
+Execute Code
+  ↓
+Result
+```
+
+---
+
+# 22. Lambda Example
+
+Suppose a user uploads an image.
+
+The workflow could be:
+
+```text
+User Uploads Image
+       ↓
+Amazon S3
+       ↓
+Lambda Trigger
+       ↓
+Image Processing
+       ↓
+Result
+```
+
+Lambda runs the required code when the event occurs.
+
+---
+
+# 23. Lambda and Serverless
+
+Lambda is part of the **serverless** model.
+
+Serverless does not mean that servers do not exist.
+
+It means that AWS manages the underlying server infrastructure for the developer.
+
+The developer primarily focuses on:
+
+**Writing and deploying functions.**
+
+---
+
+# 24. Advantages of Lambda
+
+Lambda can be useful because:
+
+* No traditional server management
+* Automatically scales with requests
+* Event-driven
+* Suitable for small functions
+* Can integrate with many AWS services
+* Pay-per-use model can be useful for suitable workloads
+
+---
+
+# 25. Lambda Limitations
+
+Lambda is not suitable for every application.
+
+It is particularly designed for functions and event-driven workloads.
+
+Applications that require:
+
+* Long-running processes
+* Full server control
+* Persistent server environments
+
+may be better suited to other deployment models.
+
+---
+
+# 26. EC2 vs ECS vs EKS vs Lambda
+
+This is an important comparison.
+
+| Service               | Main Purpose                 |
+| --------------------- | ---------------------------- |
+| **EC2**               | Virtual machines             |
+| **ECS**               | Container orchestration      |
+| **Fargate**           | Serverless container compute |
+| **EKS**               | Managed Kubernetes           |
+| **Elastic Beanstalk** | Platform as a Service        |
+| **Lambda**            | Serverless functions         |
+
+---
+
+# 27. Easy Way to Remember AWS Services
+
+```text
+Need a Virtual Machine?
+        ↓
+       EC2
+
+Need Containers?
+        ↓
+       ECS
+
+Need Containers without managing servers?
+        ↓
+     Fargate
+
+Need Kubernetes?
+        ↓
+       EKS
+
+Need Easy Application Deployment?
+        ↓
+Elastic Beanstalk
+
+Need Serverless Functions?
+        ↓
+      Lambda
+```
+
+---
+
+# 28. AWS Container Deployment Architecture
+
+A modern Docker-based AWS deployment may look like:
+
+```text
+                Developer
+                    ↓
+                  GitHub
+                    ↓
+                CI Pipeline
+                    ↓
+              Docker Build
+                    ↓
+              Docker Image
+                    ↓
+              Image Registry
+                    ↓
+              ECS / Fargate
+                    ↓
+              Running Container
+                    ↓
+                  Users
+```
+
+---
+
+# 29. AWS with CI/CD
+
+AWS services can be integrated with CI/CD tools.
+
+For example:
+
+```text
+GitHub
+   ↓
+GitHub Actions
+   ↓
+Build
+   ↓
+Test
+   ↓
+Docker Image
+   ↓
+AWS Container Registry
+   ↓
+ECS / EKS
+   ↓
+Production
+```
+
+This creates an automated deployment pipeline.
+
+---
+
+# 30. AWS Container Registry
+
+Container images need somewhere to be stored.
+
+AWS provides **Amazon ECR (Elastic Container Registry)** for container images.
+
+Example:
+
+```text
+Docker Build
+     ↓
+Docker Image
+     ↓
+Amazon ECR
+     ↓
+ECS / EKS
+```
+
+The deployment system can retrieve the image from the registry.
+
+---
+
+# 31. Why ECR is Important
+
+ECR provides a place to store container images used by AWS container services.
+
+A CI/CD pipeline can:
+
+1. Build the Docker image.
+2. Tag the image.
+3. Push the image to ECR.
+4. Deploy that image to ECS or EKS.
+
+---
+
+# 32. Versioning Docker Images
+
+A good deployment system should identify exactly which application version is being deployed.
+
+For example:
+
+```text
+myapp:abc123
+```
+
+where `abc123` can represent a commit identifier.
+
+This makes deployments easier to trace.
+
+---
+
+# 33. AWS Deployment with Docker
+
+The complete process can be:
+
+```text
+Source Code
+     ↓
+GitHub
+     ↓
+CI
+     ↓
+Docker Build
+     ↓
+Docker Image
+     ↓
+Amazon ECR
+     ↓
+ECS/Fargate
+     ↓
+Production
+```
+
+---
+
+# 34. AWS Load Balancing
+
+For applications receiving traffic from many users, a load balancer can distribute requests across application instances.
+
+Conceptually:
+
+```text
+              Users
+                ↓
+          Load Balancer
+          /     |      \
+         ↓      ↓       ↓
+       App     App     App
+```
+
+This can improve availability and distribute traffic.
+
+---
+
+# 35. AWS Auto Scaling
+
+Applications may experience changing traffic.
+
+Example:
+
+```text
+Normal Traffic
+     ↓
+2 Instances
+```
+
+During high traffic:
+
+```text
+High Traffic
+     ↓
+5 Instances
+```
+
+Auto Scaling can help applications adjust capacity based on demand.
+
+---
+
+# 36. AWS Monitoring
+
+Deployment is not complete just because the application starts.
+
+The application should be monitored.
+
+AWS provides monitoring capabilities through services such as **Amazon CloudWatch**.
+
+Important things to monitor include:
+
+* CPU usage
+* Memory-related metrics where available
+* Request activity
+* Errors
+* Application logs
+* Infrastructure health
+
+---
+
+# 37. AWS Logging
+
+Logs help engineers understand what is happening inside applications and infrastructure.
+
+Example:
+
+```text
+Application
+    ↓
+Logs
+    ↓
+Cloud Logging/Monitoring
+    ↓
+Engineer
+```
+
+Logs are useful when investigating deployment problems.
+
+---
+
+# 38. AWS Security
+
+Cloud deployment must also consider security.
+
+Important areas include:
+
+* Identity and access management
+* Network security
+* Secrets
+* Encryption
+* Access control
+* Security groups
+* Least-privilege permissions
+
+Credentials should not be hardcoded inside application code.
+
+---
+
+# 39. AWS IAM
+
+**IAM (Identity and Access Management)** controls who can access AWS resources and what actions they can perform.
+
+Example:
+
+```text
+Developer
+   ↓
+IAM Permissions
+   ↓
+AWS Resources
+```
+
+Different users and services should receive only the permissions they actually need.
+
+---
+
+# 40. AWS Deployment Environments
+
+AWS can support multiple environments.
+
+For example:
+
+```text
+Development AWS Environment
+          ↓
+Staging AWS Environment
+          ↓
+Production AWS Environment
+```
+
+This follows the general DevOps approach of testing before production.
+
+---
+
+# 41. Staging on AWS
+
+A staging environment can be created to closely resemble production.
+
+Example:
+
+```text
+Staging
+ ↓
+ECS/Fargate
+ ↓
+Application
+```
+
+Automated tests can run against staging before production deployment.
+
+---
+
+# 42. Production on AWS
+
+After testing and approval:
+
+```text
+Staging
+   ↓
+Approval
+   ↓
+Production
+```
+
+The same application artifact should ideally be promoted from staging to production rather than rebuilding a different artifact.
+
+---
+
+# 43. AWS Rolling Deployment
+
+A new version can be gradually introduced.
+
+```text
+Old Old Old
+   ↓
+New Old Old
+   ↓
+New New Old
+   ↓
+New New New
+```
+
+This reduces the need for complete downtime.
+
+---
+
+# 44. AWS Blue-Green Deployment
+
+Two environments can be maintained.
+
+```text
+BLUE
+Current Version
+
+GREEN
+New Version
+```
+
+Traffic can be switched between them.
+
+```text
+Users
+ ↓
+BLUE
+```
+
+Then:
+
+```text
+Users
+ ↓
+GREEN
+```
+
+If the new version has problems, traffic can be switched back.
+
+---
+
+# 45. AWS Canary Deployment
+
+A small amount of traffic can be sent to a new version first.
+
+Example:
+
+```text
+95% → Old Version
+5%  → New Version
+```
+
+If the new version is healthy:
+
+```text
+80% → Old
+20% → New
+```
+
+Eventually:
+
+```text
+100% → New Version
+```
+
+This reduces the initial blast radius.
+
+---
+
+# 46. AWS Rollback
+
+If a deployment causes problems:
+
+```text
+New Version
+     ↓
+Problem
+     ↓
+Detection
+     ↓
+Rollback
+     ↓
+Previous Version
+```
+
+Rollback is an important part of reliable deployment.
+
+---
+
+# 47. AWS Disaster Recovery
+
+Organizations also need plans for major failures.
+
+Disaster recovery can involve:
+
+* Backups
+* Multiple availability zones
+* Replication
+* Recovery procedures
+* Monitoring
+* Automated failover
+
+The exact architecture depends on application requirements.
+
+---
+
+# 48. AWS Scalability
+
+One major advantage of cloud deployment is the ability to scale infrastructure.
+
+Example:
+
+```text
+100 Users
+   ↓
+Small Capacity
+```
+
+If traffic increases:
+
+```text
+100,000 Users
+      ↓
+Larger Capacity
+```
+
+AWS provides many services and mechanisms that can support scaling.
+
+---
+
+# 49. AWS Availability
+
+Applications should ideally continue operating even if one infrastructure component fails.
+
+A simplified architecture may look like:
+
+```text
+             Load Balancer
+             /           \
+            ↓             ↓
+       Instance A     Instance B
+```
+
+If one instance fails, another can continue serving requests.
+
+---
+
+# 50. AWS Microservices
+
+AWS container services are commonly useful for microservice architectures.
+
+Example:
+
+```text
+                 Application
+                     |
+       ┌─────────────┼─────────────┐
+       ↓             ↓             ↓
+     User          Payment        Order
+    Service        Service        Service
+```
+
+Each service can potentially be deployed independently.
+
+---
+
+# 51. AWS Serverless Architecture
+
+A serverless application might look like:
+
+```text
+User
+ ↓
+API
+ ↓
+Lambda
+ ↓
+Database
+```
+
+The developer does not need to manage traditional servers for the Lambda functions.
+
+---
+
+# 52. AWS PaaS Architecture
+
+With Elastic Beanstalk:
+
+```text
+Developer
+    ↓
+Application Code
+    ↓
+Elastic Beanstalk
+    ↓
+Managed AWS Environment
+    ↓
+Users
+```
+
+This simplifies the deployment process.
+
+---
+
+# 53. Choosing the Right AWS Service
+
+The choice depends on the project.
+
+### Choose EC2 when:
+
+You need more control over a virtual machine.
+
+### Choose ECS when:
+
+You want AWS-native container orchestration.
+
+### Choose Fargate when:
+
+You want to run containers without managing the underlying servers.
+
+### Choose EKS when:
+
+You specifically need Kubernetes.
+
+### Choose Elastic Beanstalk when:
+
+You want a simpler managed application deployment platform.
+
+### Choose Lambda when:
+
+Your application fits an event-driven/serverless function model.
+
+---
+
+# 54. AWS Services in One Diagram
+
+```text
+                         AWS
+                          |
+       ┌──────────────────┼──────────────────┐
+       ↓                  ↓                  ↓
+     Compute           Containers         Serverless
+       |                  |                  |
+      EC2            ECS / Fargate        Lambda
+       |
+      VMs
+
+                         |
+                         ↓
+                       EKS
+                    Kubernetes
+
+                         |
+                         ↓
+                 Elastic Beanstalk
+                       PaaS
+```
+
+---
+
+# 55. Complete AWS CI/CD Example
+
+A realistic deployment pipeline can be:
+
+```text
+Developer
+    ↓
+Feature Branch
+    ↓
+Pull Request
+    ↓
+GitHub Actions
+    ↓
+Lint
+    ↓
+Unit Tests
+    ↓
+Build
+    ↓
+Docker Image
+    ↓
+Amazon ECR
+    ↓
+Staging
+    ↓
+Automated Tests
+    ↓
+Approval
+    ↓
+Production
+    ↓
+ECS / Fargate / EKS
+    ↓
+Cloud Monitoring
+```
+
+---
+
+# 56. AWS Deployment Benefits
+
+AWS provides:
+
+* Cloud infrastructure
+* Flexible deployment options
+* Container services
+* Kubernetes
+* Serverless computing
+* Monitoring
+* Security services
+* Scalability
+* High availability options
+* Integration with CI/CD
+
+---
+
+# 57. AWS Deployment Challenges
+
+AWS also introduces complexity.
+
+Common challenges include:
+
+* Large number of services
+* Configuration complexity
+* Security configuration
+* Cost management
+* Networking complexity
+* Monitoring requirements
+* IAM permissions
+* Infrastructure management
+
+Therefore, teams should select services according to their actual requirements.
+
+---
+
+# 58. AWS Cost Management
+
+Cloud resources can generate costs based on usage and configuration.
+
+Therefore, teams should monitor:
+
+* Compute usage
+* Storage
+* Network traffic
+* Database usage
+* Container workloads
+* Serverless invocations
+
+Unused resources should be identified and removed where appropriate.
+
+---
+
+# 59. AWS and Infrastructure as Code
+
+AWS infrastructure can be managed using Infrastructure as Code tools.
+
+For example:
+
+```text
+Terraform
+     ↓
+AWS Resources
+```
+
+or:
+
+```text
+CloudFormation
+     ↓
+AWS Resources
+```
+
+This makes infrastructure more repeatable and easier to version-control.
+
+---
+
+# 60. AWS and Docker
+
+Docker fits naturally into AWS container deployment.
+
+```text
+Application
+    ↓
+Dockerfile
+    ↓
+Docker Image
+    ↓
+Amazon ECR
+    ↓
+ECS / Fargate / EKS
+    ↓
+Production
+```
+
+---
+
+# 61. AWS and Kubernetes
+
+For Kubernetes-based applications:
+
+```text
+Developer
+    ↓
+Docker
+    ↓
+Container Image
+    ↓
+Registry
+    ↓
+Amazon EKS
+    ↓
+Kubernetes
+    ↓
+Pods
+    ↓
+Users
+```
+
+---
+
+# 62. AWS and GitHub Actions
+
+GitHub Actions can automate AWS deployment.
+
+A typical workflow is:
+
+```text
+Git Push
+   ↓
+GitHub Actions
+   ↓
+Test
+   ↓
+Build
+   ↓
+Docker Image
+   ↓
+Push to ECR
+   ↓
+Deploy to AWS
+```
+
+This reduces manual deployment work.
+
+---
+
+# 63. AWS Production Best Practice
+
+A production deployment should ideally have:
+
+```text
+Version Control
+       +
+CI/CD
+       +
+Immutable Artifacts
+       +
+Secure Secrets
+       +
+Monitoring
+       +
+Health Checks
+       +
+Rollback
+```
+
+Together these practices improve deployment reliability.
+
+---
+
+# 64. AWS Deployment — Final Comparison
+
+| AWS Service           | Type                         | Main Use                                |
+| --------------------- | ---------------------------- | --------------------------------------- |
+| **EC2**               | IaaS / VM                    | Virtual servers                         |
+| **ECS**               | Container orchestration      | Manage containers                       |
+| **Fargate**           | Serverless container compute | Run containers without managing servers |
+| **EKS**               | Managed Kubernetes           | Kubernetes workloads                    |
+| **Elastic Beanstalk** | PaaS                         | Simplified application deployment       |
+| **Lambda**            | Serverless                   | Event-driven functions                  |
+| **ECR**               | Container Registry           | Store Docker images                     |
+| **CloudWatch**        | Monitoring                   | Logs and metrics                        |
+| **IAM**               | Security                     | Access control                          |
+
+---
+
+# 65. Final AWS Deployment Flow
+
+The complete concept can be remembered as:
+
+```text
+                    DEVELOPER
+                        ↓
+                      GIT
+                        ↓
+                    CI/CD
+                        ↓
+                 BUILD + TEST
+                        ↓
+                  DOCKER IMAGE
+                        ↓
+                     ECR
+                        ↓
+          ┌─────────────┼─────────────┐
+          ↓             ↓             ↓
+        ECS           EKS          FARGATE
+          |             |             |
+          └─────────────┼─────────────┘
+                        ↓
+                    PRODUCTION
+                        ↓
+                    MONITORING
+                        ↓
+                 HEALTH CHECKS
+                        ↓
+               ┌────────┴────────┐
+               ↓                 ↓
+            Healthy           Failure
+               ↓                 ↓
+          Continue          Rollback
+```
+
+## Short Exam Answer
+
+**AWS provides multiple services for application deployment. EC2 provides virtual machines, ECS manages containers, Fargate runs containers without requiring users to manage the underlying servers, EKS provides managed Kubernetes, Elastic Beanstalk simplifies application deployment through a PaaS model, and Lambda provides serverless event-driven computing. These services can be integrated with CI/CD pipelines to automate application build, testing, packaging, deployment, monitoring, and rollback.**
