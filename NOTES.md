@@ -350,9 +350,3 @@ Developer A ─┐
 Developer B ─┼──→ main
 Developer C ─┘
 ```
-
-Feature flags can be used to hide unfinished features.
-
-Advantage:
-
-**main**
