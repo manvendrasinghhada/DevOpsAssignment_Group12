@@ -47,7 +47,7 @@ def get_git_metrics(interval="weekly"):
     Supported intervals: 'weekly', 'monthly', 'final'
     """
     today = datetime.date.today()
-    git_args = ['git', 'log', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
+    git_args = ['git', 'log', '--no-merges', '--author=chandchoudhary2206-cmd', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
     
     if interval == "weekly":
         since_date = (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
