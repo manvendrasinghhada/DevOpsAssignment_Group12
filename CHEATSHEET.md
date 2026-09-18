@@ -573,3 +573,62 @@ terraform apply         # apply changes
 terraform destroy       # tear down managed infra
 terraform fmt            # auto-format .tf files
 terraform state list      # list resources in state
+
+Git
+
+git status → check changes
+git switch -c branch → new branch
+git add . → stage changes
+git commit -m "msg" → save changes
+git push → upload changes
+git pull → get latest changes
+git merge → combine branches
+git revert → undo commit safely
+
+Docker
+
+Docker → containerization
+Image → application package/template
+Container → running image
+docker build → create image
+docker run → start container
+docker ps → running containers
+docker logs → container logs
+docker push/pull → registry se upload/download
+
+Docker Compose
+
+Multiple containers/services manage karta hai.
+docker compose up -d → start
+docker compose down → stop/remove
+docker compose logs → logs
+docker compose build → rebuild
+
+Kubernetes
+
+Kubernetes → container orchestration
+Pod → smallest deployable unit
+Deployment → manages Pods
+Service → stable network access
+Ingress → HTTP/HTTPS routing
+ConfigMap → non-sensitive config
+Secret → sensitive config
+kubectl get pods → Pods check
+kubectl apply -f file.yaml → deploy/update
+kubectl logs pod → logs
+kubectl rollout undo → rollback
+kubectl scale → replicas increase/decrease
+
+CI/CD
+
+CI → Build + Test automatically
+CD → Deliver/Deploy automatically
+
+Pipeline:
+Git → Build → Test → Docker → Registry → Kubernetes → Deploy → Monitor
+
+Deployment Strategies
+
+Rolling → gradually old Pods replace
+Blue-Green → two environments, traffic switch
+Canary → small percentage users first
